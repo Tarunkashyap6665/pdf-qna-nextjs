@@ -1,103 +1,155 @@
-import Image from "next/image";
+"use client";
+
+import { useState, useCallback } from "react";
+import { useDropzone } from "react-dropzone";
+import { PdfUpload } from "@/components/pdf-upload";
+import { QuestionAnswer } from "@/components/question-answer";
 
 export default function Home() {
-  return (
-    <div className="font-sans grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20">
-      <main className="flex flex-col gap-[32px] row-start-2 items-center sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={180}
-          height={38}
-          priority
-        />
-        <ol className="font-mono list-inside list-decimal text-sm/6 text-center sm:text-left">
-          <li className="mb-2 tracking-[-.01em]">
-            Get started by editing{" "}
-            <code className="bg-black/[.05] dark:bg-white/[.06] font-mono font-semibold px-1 py-0.5 rounded">
-              app/page.tsx
-            </code>
-            .
-          </li>
-          <li className="tracking-[-.01em]">
-            Save and see your changes instantly.
-          </li>
-        </ol>
+  const [file, setFile] = useState<File | null>(null);
+  const [uploading, setUploading] = useState(false);
+  const [uploadSuccess, setUploadSuccess] = useState(false);
+  const [uploadError, setUploadError] = useState("");
+  const [question, setQuestion] = useState("");
+  const [conversations, setConversations] = useState<
+    { question: string; answer: string }[]
+  >([]);
+  const [querying, setQuerying] = useState(false);
+  const [queryError, setQueryError] = useState("");
 
-        <div className="flex gap-4 items-center flex-col sm:flex-row">
-          <a
-            className="rounded-full border border-solid border-transparent transition-colors flex items-center justify-center bg-foreground text-background gap-2 hover:bg-[#383838] dark:hover:bg-[#ccc] font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 sm:w-auto"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={20}
-              height={20}
-            />
-            Deploy now
-          </a>
-          <a
-            className="rounded-full border border-solid border-black/[.08] dark:border-white/[.145] transition-colors flex items-center justify-center hover:bg-[#f2f2f2] dark:hover:bg-[#1a1a1a] hover:border-transparent font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 w-full sm:w-auto md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Read our docs
-          </a>
-        </div>
+  // Handle file drop
+  const onDrop = useCallback((acceptedFiles: File[]) => {
+    if (acceptedFiles.length > 0) {
+      const selectedFile = acceptedFiles[0];
+      if (selectedFile.type === "application/pdf") {
+        setFile(selectedFile);
+        setUploadError("");
+      } else {
+        setUploadError("Please upload a PDF file");
+      }
+    }
+  }, []);
+
+  const { getRootProps, getInputProps, isDragActive } = useDropzone({
+    onDrop,
+    accept: {
+      "application/pdf": [".pdf"],
+    },
+    maxFiles: 1,
+  });
+
+  // Handle file upload
+  const handleUpload = async () => {
+    if (!file) {
+      setUploadError("Please select a file to upload");
+      return;
+    }
+
+    try {
+      setUploading(true);
+      setUploadError("");
+
+      const formData = new FormData();
+      formData.append("file", file);
+
+      const response = await fetch("/api/upload", {
+        method: "POST",
+        body: formData,
+      });
+
+      const data = await response.json();
+
+      if (data.success) {
+        setUploadSuccess(true);
+      } else {
+        setUploadError(data.message || "Failed to upload PDF");
+      }
+    } catch (error: any) {
+      setUploadError(error.message || "An error occurred during upload");
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  // Handle question submission
+  const handleAskQuestion = async () => {
+    if (!question.trim()) {
+      setQueryError("Please enter a question");
+      return;
+    }
+
+    try {
+      setQuerying(true);
+      setQueryError("");
+
+      const currentQuestion = question;
+      // Clear the question input for next question
+      setQuestion("");
+
+      const response = await fetch("/api/query", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          query: currentQuestion,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (data.success) {
+        // Add the new question and answer to conversations
+        setConversations((prev) => [
+          ...prev,
+          {
+            question: currentQuestion,
+            answer: data.answer,
+          },
+        ]);
+      } else {
+        setQueryError(data.message || "Failed to get answer");
+      }
+    } catch (error: any) {
+      setQueryError(error.message || "An error occurred while querying");
+    } finally {
+      setQuerying(false);
+    }
+  };
+
+  return (
+    <div className="font-sans min-h-screen p-8 pb-20 gap-8 sm:p-20">
+      <header className="mb-12 text-center">
+        <h1 className="text-3xl font-bold mb-4">PDF Q&A App</h1>
+        <p className="text-gray-600 dark:text-gray-400">
+          Upload a PDF and ask questions about its content
+        </p>
+      </header>
+
+      <main className="max-w-4xl mx-auto grid grid-cols-1 gap-8 md:grid-cols-2">
+        {/* PDF Upload Section */}
+        <PdfUpload
+          file={file}
+          uploading={uploading}
+          uploadSuccess={uploadSuccess}
+          uploadError={uploadError}
+          handleUpload={handleUpload}
+          isDragActive={isDragActive}
+          getRootProps={getRootProps}
+          getInputProps={getInputProps}
+        />
+
+        {/* Question & Answer Section */}
+        <QuestionAnswer
+          question={question}
+          setQuestion={setQuestion}
+          conversations={conversations}
+          handleAskQuestion={handleAskQuestion}
+          querying={querying}
+          queryError={queryError}
+          uploadSuccess={uploadSuccess}
+        />
       </main>
-      <footer className="row-start-3 flex gap-[24px] flex-wrap items-center justify-center">
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/file.svg"
-            alt="File icon"
-            width={16}
-            height={16}
-          />
-          Learn
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/window.svg"
-            alt="Window icon"
-            width={16}
-            height={16}
-          />
-          Examples
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/globe.svg"
-            alt="Globe icon"
-            width={16}
-            height={16}
-          />
-          Go to nextjs.org →
-        </a>
-      </footer>
     </div>
   );
 }

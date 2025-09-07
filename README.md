@@ -1,36 +1,88 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# PDF Q&A App
 
-## Getting Started
+A mini application built with Next.js that allows users to upload PDF files and ask questions about their content using either OpenAI or Google Generative AI.
 
-First, run the development server:
+## Features
+
+- PDF file upload and text extraction
+- Vector embeddings generation using OpenAI API or Google Generative AI
+- Storage of embeddings in an in-memory vector store
+- Question answering using Retrieval Augmented Generation (RAG)
+- Simple and intuitive user interface with:
+  - Drag-and-drop PDF upload
+  - Chat-like conversation history
+  - Real-time question and answer display
+
+## Tech Stack
+
+- **Frontend**: Next.js, React, TailwindCSS
+- **Backend**: Next.js API Routes
+- **PDF Processing**: LangChain PDFLoader
+- **Vector Storage**: LangChain MemoryVectorStore
+- **AI**: OpenAI API or Google Gemini API (embeddings and completions)
+
+## Setup Instructions
+
+### Prerequisites
+
+- Node.js (v22 or higher)
+- Either OpenAI API key or Google API key
+
+### Installation
+
+1. Clone the repository
+
+```bash
+git clone https://github.com/Tarunkashyap6665/pdf-qna-nextjs.git
+cd pdf-qna-nextjs
+```
+
+2. Install dependencies
+
+```bash
+npm install
+```
+
+3. Create a `.env` file in the root directory with one of the following API keys:
+
+```
+# If you want to use OpenAI
+OPENAI_API_KEY=your_openai_api_key
+
+# If you want to use Google Gemini
+GOOGLE_API_KEY=your_google_api_key
+```
+
+Note: You only need to provide one of the API keys. The application will use OpenAI if the key is provided, otherwise it will fall back to Google Gemini.
+
+### Running the Application
 
 ```bash
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+The application will be available at http://localhost:3000
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Approach
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+### PDF Processing and Embedding Generation
 
-## Learn More
+1. When a user uploads a PDF, the file is sent to the `/api/upload` endpoint.
+2. The PDF text is extracted using LangChain's `PDFLoader`.
+3. The text is split into smaller chunks with some overlap to maintain context using `RecursiveCharacterTextSplitter`.
+4. Each chunk is converted into a vector embedding using either OpenAI's embedding API (text-embedding-3-large) or Google's Gemini embedding API (gemini-embedding-001).
+5. The embeddings are stored in memory using LangChain's `MemoryVectorStore`.
 
-To learn more about Next.js, take a look at the following resources:
+### Question Answering
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+1. When a user asks a question, it's sent to the `/api/query` endpoint.
+2. The question is used to retrieve relevant document chunks from the vector store using similarity search.
+3. The vector store retrieves the top 3 most relevant chunks from the PDF.
+4. The relevant chunks are combined and sent to either OpenAI's GPT-4 model or Google's Gemini model along with the question.
+5. The model generates an answer based on the provided context, which is returned to the user and displayed in a chat-like interface.
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+### Security
 
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+- API routes are protected and only accessible from the frontend application.
+- Environment variables are used to securely store API keys.
+- Input validation is performed on both client and server sides.
