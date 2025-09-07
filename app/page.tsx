@@ -36,6 +36,7 @@ export default function Home() {
       "application/pdf": [".pdf"],
     },
     maxFiles: 1,
+    multiple: false,
   });
 
   // Handle file upload

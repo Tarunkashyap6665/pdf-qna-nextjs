@@ -4,6 +4,10 @@ import { OpenAIEmbeddings } from "@langchain/openai";
 
 let embeddings;
 // Embeddings
+console.log(
+  "Using embeddings:",
+  process.env.OPENAI_API_KEY ? "OpenAI" : "Google Generative AI"
+);
 if (process.env.OPENAI_API_KEY) {
   embeddings = new OpenAIEmbeddings({
     model: "text-embedding-3-large",
